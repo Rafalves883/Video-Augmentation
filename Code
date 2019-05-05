@@ -1,0 +1,142 @@
+import random
+from scipy import ndarray
+import skimage as sk
+from skimage import transform
+from skimage import util
+import cv2
+from skimage import data
+import warnings
+from skimage import filters
+from skimage import color
+from skimage import exposure
+from skimage.transform import rotate
+from skimage.transform import warp
+from skimage.transform import ProjectiveTransform
+from skimage.transform import AffineTransform
+import math
+import numpy as np
+
+#turns video into frames
+def get_frames(video_path, frameRate=0.1):
+    vidcap = cv2.VideoCapture(video_path)
+    def getFrame(sec):
+        vidcap.set(cv2.CAP_PROP_POS_MSEC,sec*1000)
+        hasFrames,image = vidcap.read()
+        return hasFrames, image
+    images= []
+    sec = 0
+    count=1
+    success = getFrame(sec)
+    while success:
+        count = count + 1
+        sec = sec + frameRate
+        sec = round(sec, 2)
+        success, imagem = getFrame(sec)
+        images.append(imagem)
+    return images
+
+def turn_video(name,clip,clip2=[],j=0,k=0):
+    h,w,l= clip[0].shape
+    size=(w,h)    
+    out = cv2.VideoWriter(name,cv2.VideoWriter_fourcc(*'DIVX'), 15, size)
+    i=0
+    for i in range(len(clip)-j):#if the python returns something with NoneType put j=1
+        if k == 1: #k=1 to random noise, gaussian blur and random rotate
+            out.write(np.uint8(clip[i]*clip2[i]))
+        else:
+            out.write(np.uint8(clip[i]))
+    out.release()
+
+def random_noise_v(clip):
+    from skimage.util import random_noise
+    img_array=[]
+    for i in range(len(images)-1):
+        image_with_random_noise = random_noise(images[i])
+        img_array.append(image_with_random_noise)
+    return img_array
+
+def gaussian_b(images, intensity=0.75, depth=1):
+    def gaussian(X, intensity=0.75, depth=1):
+        indices_gaussian = np.random.choice(
+            X.shape[0], math.ceil(X.shape[0] * depth), replace=False)
+        X_=[]
+        for k in indices_gaussian:
+            sigma_=uniform(1-intensity,intensity)
+            X_.append(filters.gaussian(X[k], sigma=sigma_, multichannel=True))
+        return np.asarray(X_)
+    img_arrai=[]
+    for i in range(len(images)-1):
+        image_with_random_noise = gaussian(images[i],intensity,depth)
+        img_arrai.append(image_with_random_noise)
+    return img_arrai
+
+def random_rotation1(images):
+    def random_rotation(image_array, random_degree):
+        # pick a random degree of rotation between 25% on the left and 25% on the right
+        return sk.transform.rotate(image_array, random_degree)
+    img_arroi=[]
+    random_degree = random.uniform(-25, 25)
+    for i in range(len(images)-1):
+        image_with_random_noise = random_rotation(images[i],random_degree)
+        img_arroi.append(image_with_random_noise)
+    return img_arroi
+
+#horizontal flip de video
+def flip(images):
+    def horizontal_flip(image_array):
+        # horizontal flip doesn't need skimage, it's easy as flipping the image array of pixels !
+        return image_array[:, ::-1]
+    img_arrei=[]
+    for i in range(len(images)-1):
+        image_with_random_noise = horizontal_flip(images[i])
+        img_arrei.append(image_with_random_noise)
+    return img_arrei
+
+#invert video color
+def invert(images):
+    img_arrui=[]
+    for i in range(len(images)-1):
+        image_with_random_noise = np.invert(images[i])
+        img_arrui.append(image_with_random_noise)
+    return img_arrui
+
+#add value to all pixels
+def add(images, value):
+    data_final = []
+    for i in range(len(images)-1):
+        image = images[i].astype(np.int32)
+        image += value
+        image = np.where(image > 255, 255, image)
+        image = np.where(image < 0, 0, image)
+        image = image.astype(np.uint8)
+        data_final.append(image.astype(np.uint8))
+    return data_final
+
+
+#apply random black points on the video
+def pepper(images):
+    dota_final = []
+    for i in range(len(images)-1):
+        img = images[i].astype(np.float)
+        img_shape = img.shape
+        noise = np.random.randint(30, size=img_shape)
+        img = np.where(noise == 0, 0, img)
+        dota_final.append(img.astype(np.uint8))
+    return dota_final
+
+#apply random white points on the video
+def salt(images):
+    deta_final = []
+    for i in range(len(images)-1):
+        img = images[i].astype(np.float)
+        img_shape = img.shape
+        noise = np.random.randint(30, size=img_shape)
+        img = np.where(noise == 0, 255, img)
+        deta_final.append(img.astype(np.uint8))
+    return deta_final
+
+#if 0<ratio<1, speed up video, else 1<ratio<infinity, slows up the video
+def changesample(clip, ratio):
+        nb_return_frame = np.floor(ratio * len(clip))
+        return_ind = [int(i) for i in np.linspace(1, len(clip), num=nb_return_frame)]
+        return [clip[i-1] for i in return_ind]
